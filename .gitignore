@@ -1,0 +1,19 @@
+# ignore node_modules everywhere
+**/node_modules/
+
+# ignore environment files
+**/.env
+**/.env.local
+**/.env.production
+
+# dist / build files
+**/dist/
+**/build/
+
+# Prisma
+**/prisma/dev.db
+**/prisma/*-shadow-*
+
+# OS files
+.DS_Store
+Thumbs.db
