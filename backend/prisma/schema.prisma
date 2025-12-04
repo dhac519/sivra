@@ -12,7 +12,7 @@ datasource db {
 }
 
 // ==========================================================
-//  ENUMS
+//  ENUMS (Estados y Tipos)
 // ==========================================================
 enum TipoCliente {
   PERSONA
@@ -63,115 +63,123 @@ enum EstadoRegistro {
 }
 
 // ==========================================================
-//  MODELOS BASE
+//  MODELOS DE USUARIOS Y ROLES
 // ==========================================================
+
 model Rol {
   id        Int       @id @default(autoincrement())
-  nombre    String    @unique
+  nombre    String    @unique // SUPER_ADMIN, VENDEDOR, etc.
   usuarios  Usuario[]
+  
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 }
 
 model Usuario {
-  id        Int       @id @default(autoincrement())
-  nombre    String
-  apellido  String
-  email     String    @unique
+  id           Int      @id @default(autoincrement())
+  
+  // Datos de CUENTA (Login)
+  email        String   @unique // Correo Corporativo (ej: d.arce@sivra.com)
   passwordHash String
-  estado    EstadoRegistro @default(ACTIVO)
-  idRol     Int
-  rol       Rol        @relation(fields: [idRol], references: [id])
+  estado       EstadoRegistro @default(ACTIVO)
+  
+  // Datos para mostrar en el sistema (Navbar, Saludos)
+  nombre       String   // Nombre corto (ej: "Dante")
+  apellido     String   // Apellido corto (ej: "Arce")
 
-  empleado  Empleado?
-  ventas    Venta[]
-  compras   Compra[]
-  movimientos MovimientoInventario[]
+  idRol        Int
+  rol          Rol      @relation(fields: [idRol], references: [id])
+
+  // Relaciones con el negocio
+  empleado     Empleado? // Relación 1:1 opcional (un usuario puede NO ser empleado)
+  ventas       Venta[]
+  compras      Compra[]
+  movimientos  MovimientoInventario[]
+  pagosRegistrados PagoEmpleado[]
+  
   cajasAperturadas  CierreCaja[] @relation("UsuarioApertura")
   cajasCerradas     CierreCaja[] @relation("UsuarioCierre")
 
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
-// ==========================================================
-//  EMPLEADOS
-// ==========================================================
 model Empleado {
-  id         Int       @id @default(autoincrement())
-  dni        String    @unique
-  telefono   String?
-  direccion  String?
+  id            Int      @id @default(autoincrement())
+  
+  // Datos Legales / RRHH
+  nombres       String   // Nombres completos (ej: "Dante Hans")
+  apellidos     String   // Apellidos completos (ej: "Arce Cotrina")
+  dni           String   @unique
+  telefono      String?
+  direccion     String?
+  emailPersonal String?  // Correo personal (gmail, hotmail)
 
-  idUsuario  Int       @unique       // 🔥 Esto corrige la relación 1:1
+  // Relación con Usuario (Cuenta de sistema)
+  idUsuario     Int      @unique 
+  usuario       Usuario  @relation(fields: [idUsuario], references: [id])
 
-  usuario    Usuario   @relation(fields: [idUsuario], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  pagos PagoEmpleado[]
 }
 
 // ==========================================================
-//  CLIENTES
+//  MODELOS DE NEGOCIO (CLIENTES, PROVEEDORES)
 // ==========================================================
+
 model Cliente {
-  id          Int        @id @default(autoincrement())
+  id          Int         @id @default(autoincrement())
   tipo        TipoCliente
   nombre      String
   documento   String?     @unique
   telefono    String?
   email       String?
   direccion   String?
-
+  
   ventas      Venta[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Proveedor {
+  id          Int      @id @default(autoincrement())
+  razonSocial String
+  ruc         String   @unique
+  telefono    String?
+  email       String?
+  direccion   String?
+
+  compras     Compra[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
 
 // ==========================================================
-//  PROVEEDORES
+//  INVENTARIO (PRODUCTOS, CATEGORÍAS)
 // ==========================================================
-model Proveedor {
-  id        Int      @id @default(autoincrement())
-  razonSocial String
-  ruc       String   @unique
-  telefono  String?
-  email     String?
-  direccion String?
 
-  compras   Compra[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ==========================================================
-//  CATEGORÍAS & MARCAS
-// ==========================================================
 model Categoria {
-  id       Int       @id @default(autoincrement())
-  nombre   String    @unique
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
   productos Producto[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
 model Marca {
-  id       Int       @id @default(autoincrement())
-  nombre   String    @unique
+  id        Int        @id @default(autoincrement())
+  nombre    String     @unique
   productos Producto[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 }
 
-// ==========================================================
-//  PRODUCTOS
-// ==========================================================
 model Producto {
   id          Int      @id @default(autoincrement())
   codigo      String   @unique
@@ -195,146 +203,174 @@ model Producto {
 }
 
 // ==========================================================
-//  COMPRAS
+//  TRANSACCIONES (COMPRAS, VENTAS, KARDEX)
 // ==========================================================
+
 model Compra {
-  id          Int         @id @default(autoincrement())
-  fecha       DateTime     @default(now())
-  total       Decimal      @db.Decimal(10,2)
-  estado      EstadoCompra @default(PENDIENTE)
+  id          Int           @id @default(autoincrement())
+  fecha       DateTime      @default(now())
+  total       Decimal       @db.Decimal(10,2)
+  estado      EstadoCompra  @default(PENDIENTE)
 
   idProveedor Int
-  proveedor   Proveedor    @relation(fields: [idProveedor], references: [id])
+  proveedor   Proveedor     @relation(fields: [idProveedor], references: [id])
 
   idUsuario   Int
-  usuario     Usuario      @relation(fields: [idUsuario], references: [id])
+  usuario     Usuario       @relation(fields: [idUsuario], references: [id])
 
   detalles    CompraDetalle[]
+  movimientos MovimientoInventario[] // Relación para saber que movs generó esta compra
 
-  movimientos MovimientoInventario[]
-
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 }
 
 model CompraDetalle {
-  id        Int      @id @default(autoincrement())
-  cantidad  Int
-  precio    Decimal  @db.Decimal(10,2)
+  id         Int      @id @default(autoincrement())
+  cantidad   Int
+  precio     Decimal  @db.Decimal(10,2)
 
-  idCompra  Int
-  compra    Compra   @relation(fields: [idCompra], references: [id])
+  idCompra   Int
+  compra     Compra   @relation(fields: [idCompra], references: [id])
 
   idProducto Int
   producto   Producto @relation(fields: [idProducto], references: [id])
 }
 
-// ==========================================================
-//  VENTAS
-// ==========================================================
 model Venta {
-  id          Int         @id @default(autoincrement())
-  fecha       DateTime     @default(now())
-  total       Decimal      @db.Decimal(10,2)
+  id          Int             @id @default(autoincrement())
+  fecha       DateTime        @default(now())
+  total       Decimal         @db.Decimal(10,2)
   metodoPago  MetodoPago
-  estado      EstadoVenta  @default(PENDIENTE)
+  estado      EstadoVenta     @default(PENDIENTE)
   comprobante TipoComprobante
 
   idCliente   Int
-  cliente     Cliente      @relation(fields: [idCliente], references: [id])
+  cliente     Cliente         @relation(fields: [idCliente], references: [id])
 
   idUsuario   Int
-  usuario     Usuario      @relation(fields: [idUsuario], references: [id])
+  usuario     Usuario         @relation(fields: [idUsuario], references: [id])
 
   detalles    VentaDetalle[]
   movimientos MovimientoInventario[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 }
 
 model VentaDetalle {
-  id         Int       @id @default(autoincrement())
+  id         Int      @id @default(autoincrement())
   cantidad   Int
-  precio     Decimal   @db.Decimal(10,2)
+  precio     Decimal  @db.Decimal(10,2)
 
   idVenta    Int
-  venta      Venta     @relation(fields: [idVenta], references: [id])
+  venta      Venta    @relation(fields: [idVenta], references: [id])
 
   idProducto Int
-  producto   Producto  @relation(fields: [idProducto], references: [id])
+  producto   Producto @relation(fields: [idProducto], references: [id])
 }
 
-// ==========================================================
-//  MOVIMIENTOS DE INVENTARIO (KARDEX)
-// ==========================================================
 model MovimientoInventario {
   id          Int            @id @default(autoincrement())
-  fecha       DateTime        @default(now())
+  fecha       DateTime       @default(now())
   tipo        TipoMovimiento
   cantidad    Int
   descripcion String?
 
   idProducto  Int
-  producto    Producto        @relation(fields: [idProducto], references: [id])
+  producto    Producto       @relation(fields: [idProducto], references: [id])
 
   idUsuario   Int?
-  usuario     Usuario?        @relation(fields: [idUsuario], references: [id])
+  usuario     Usuario?       @relation(fields: [idUsuario], references: [id])
 
   idCompra    Int?
-  compra      Compra?         @relation(fields: [idCompra], references: [id])
+  compra      Compra?        @relation(fields: [idCompra], references: [id])
 
   idVenta     Int?
-  venta       Venta?          @relation(fields: [idVenta], references: [id])
+  venta       Venta?         @relation(fields: [idVenta], references: [id])
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
 }
 
 // ==========================================================
-//  CAJA
+//  CONTROL DE CAJA
 // ==========================================================
+
 model Caja {
-  id         Int         @id @default(autoincrement())
-  fecha      DateTime    @default(now())
-  estado     EstadoCaja  @default(ABIERTA)
-  montoInicial Decimal    @db.Decimal(10,2)
-  montoFinal   Decimal?   @db.Decimal(10,2)
+  id           Int          @id @default(autoincrement())
+  fecha        DateTime     @default(now())
+  estado       EstadoCaja   @default(ABIERTA)
+  montoInicial Decimal      @db.Decimal(10,2)
+  montoFinal   Decimal?     @db.Decimal(10,2)
 
-  cierres    CierreCaja[]
+  cierres      CierreCaja[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 }
 
 model CierreCaja {
-  id               Int       @id @default(autoincrement())
-  fechaApertura    DateTime  @default(now())
-  fechaCierre      DateTime?
-  montoApertura    Decimal   @db.Decimal(10,2)
-  montoCierre      Decimal?  @db.Decimal(10,2)
+  id                Int       @id @default(autoincrement())
+  fechaApertura     DateTime  @default(now())
+  fechaCierre       DateTime?
+  montoApertura     Decimal   @db.Decimal(10,2)
+  montoCierre       Decimal?  @db.Decimal(10,2)
 
-  idCaja           Int
-  caja             Caja      @relation(fields: [idCaja], references: [id])
+  idCaja            Int
+  caja              Caja      @relation(fields: [idCaja], references: [id])
 
   idUsuarioApertura Int
-  usuarioApertura   Usuario  @relation("UsuarioApertura", fields: [idUsuarioApertura], references: [id])
+  usuarioApertura   Usuario   @relation("UsuarioApertura", fields: [idUsuarioApertura], references: [id])
 
-  idUsuarioCierre    Int?
-  usuarioCierre      Usuario? @relation("UsuarioCierre", fields: [idUsuarioCierre], references: [id])
+  idUsuarioCierre   Int?
+  usuarioCierre     Usuario?  @relation("UsuarioCierre", fields: [idUsuarioCierre], references: [id])
+
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+// ==========================================================
+//  CONFIGURACIÓN
+// ==========================================================
+
+model Parametro {
+  id        Int      @id @default(autoincrement())
+  clave     String   @unique
+  valor     String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 // ==========================================================
-//  PARÁMETROS DEL SISTEMA
+//  PAGOS / PLANILLA
 // ==========================================================
-model Parametro {
-  id     Int    @id @default(autoincrement())
-  clave  String @unique
-  valor  String
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+enum TipoPago {
+  SUELDO
+  ADELANTO
+  BONO
+  LIQUIDACION
+  OTRO
+}
+
+model PagoEmpleado {
+  id          Int       @id @default(autoincrement())
+  fecha       DateTime  @default(now())
+  monto       Decimal   @db.Decimal(10,2)
+  tipo        TipoPago
+  descripcion String?   // Ej: "Pago correspondiente a Mayo"
+  
+  metodoPago  MetodoPago // EFECTIVO, TRANSFERENCIA... (Reusamos tu Enum existente)
+
+  // Relaciones
+  idEmpleado  Int
+  empleado    Empleado  @relation(fields: [idEmpleado], references: [id])
+
+  idUsuario   Int       // El administrador que registró el pago
+  usuario     Usuario   @relation(fields: [idUsuario], references: [id])
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }
