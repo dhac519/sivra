@@ -39,11 +39,16 @@ export class UsuariosService {
             dni: data.dni,
             telefono: data.telefono,
             direccion: data.direccion,
-            idUsuario: usuario.id
+            idUsuario: usuario.id,
+            
+            // 👇 AGREGA ESTAS DOS LÍNEAS NUEVAS:
+            nombres: data.nombre,     // Reutilizamos el nombre del usuario
+            apellidos: data.apellido  // Reutilizamos el apellido del usuario
           }
         });
       }
       return usuario;
+      
     });
   }
 }
